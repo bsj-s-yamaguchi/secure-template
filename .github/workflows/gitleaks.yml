@@ -1,0 +1,30 @@
+name: gitleaks
+on:
+  pull_request:
+  push:
+  workflow_dispatch:
+jobs:
+  scan:
+    name: gitleaks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Generate github token
+        id: generate_token
+        uses: tibdex/github-app-token@v1
+        with:
+          app_id: ${{ secrets.TOKEN_GEN_APP_ID }}
+          private_key: ${{ secrets.TOKEN_GEN_PRIVATE_KEY }}
+      - uses: actions/checkout@v3
+        with:
+          repository: benesse-miraiseed/gitleaks-config
+          path: .gitleaks-config
+          token: ${{ steps.generate_token.outputs.token }}
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+          GITLEAKS_NOTIFY_USER_LIST: ${{ vars.GITLEAKS_NOTIFY_USER_LIST }}
+          GITLEAKS_CONFIG: .gitleaks-config/.gitleaks.toml

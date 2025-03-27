@@ -1,0 +1,91 @@
+name: "800. Azure WebApps Build and Deploy CI/CD"
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "デプロイする環境を選択してください。"
+        required: true
+        type: choice
+        default: "D1"
+        options:
+          - "D1"
+          - "D2"
+          - "Production"
+
+jobs:
+  get_runner_label:
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.environment }}
+    outputs:
+      runner_label: ${{ steps.get_runner_label.outputs.runner_label }}
+    steps:
+      - id: get_runner_label
+        run: |
+          echo "runner_label=${{ vars.RUNNER_LABEL }}" >> "$GITHUB_OUTPUT"
+  build:
+    environment:
+      name: ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    name: Build Application
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # package.jsonにて指定されたNode.jsのバージョンをインストールします。
+      # engineで指定されているバージョン以外では、buildが失敗する可能性があります。
+      - name: Set up Node.js version
+        uses: actions/setup-node@v1
+        with:
+          node-version: "18.16"
+
+      - name: Set up Node.js package
+        run: npm install next react react-dom crypto-js
+
+      - name: Replace .env file variables
+        uses: cschleiden/replace-tokens@v1
+        with:
+          files: '[".env"]'
+          tokenPrefix: "_@"
+          tokenSuffix: "@_"
+        env:
+          NEXT_PUBLIC_BASE_URL: ${{ vars.NEXT_PUBLIC_BASE_URL }}
+          NEXT_PUBLIC_WS_URL: ${{ vars.NEXT_PUBLIC_WS_URL }}
+          NEXT_PUBLIC_WS_WSS: ${{ vars.NEXT_PUBLIC_WS_WSS }}
+          NEXT_PUBLIC_GTM_ID: ${{ vars.NEXT_PUBLIC_GTM_ID }}
+
+      - name: Build with Next.js
+        run: npm run build
+
+      - name: Zip artifact
+        run: |
+          cd out
+          zip testpark-front.zip -r ./*
+
+      - name: Upload artifact for deployment job
+        uses: actions/upload-artifact@v4
+        with:
+          name: testpark-front-app
+          path: out/testpark-front.zip
+          retention-days: 1
+  deploy:
+    environment:
+      name: ${{ inputs.environment }}
+    runs-on: ${{ needs.get_runner_label.outputs.runner_label }}
+    needs: [get_runner_label,build]
+    name: Deploy Application
+    steps:
+      - name: Download artifact from build job
+        uses: actions/download-artifact@v4
+        with:
+          name: testpark-front-app
+
+      - name: Deploy to Azure WebApps
+        id: deploy-to-webapp
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ vars.AZURE_WEBAPP_NAME }}
+          package: testpark-front.zip
+          target-path: "/home/site/wwwroot"
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}

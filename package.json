@@ -1,0 +1,32 @@
+{
+  "name": "secure-xmas",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "prepare": "husky",
+    "commitlint": "commitlint --edit"
+  },
+  "lint-staged": {
+    "**/*.{ts,tsx}": [
+      "eslint --fix"
+    ],
+    "**/*.{css,ts,tsx,json}": [
+      "prettier --write"
+    ]
+  },
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "@commitlint/cli": "^19.5.0",
+    "@commitlint/config-conventional": "^19.5.0",
+    "eslint": "^9.15.0",
+    "husky": "^9.1.6",
+    "lint-staged": "^15.2.10",
+    "prettier": "^3.3.3"
+  },
+  "dependencies": {
+    "react": "^18.3.1"
+  }
+}
